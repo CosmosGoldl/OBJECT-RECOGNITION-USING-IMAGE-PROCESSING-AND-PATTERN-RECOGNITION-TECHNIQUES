@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Enhanced Real-time Detection - WeSee{% endblock %}
+
+{% block content %}
+<style>
+.feature-badge {
+    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0.25rem;
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.info-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+}
+
+.info-card h5 {
+    color: #1f2937;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.info-card ul li {
+    padding: 0.25rem 0;
+    color: #4b5563;
+    font-weight: 500;
+}
+
+.btn-gradient {
+    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+    background: linear-gradient(45deg, #2563eb, #1e40af);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    color: white;
+}
+
+.btn-gradient.loading {
+    background: #6b7280;
+    cursor: not-allowed;
+}
+</style>
+
+<!-- Detection Section -->
+<div class="glass-container text-center">
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <h1 class="section-title">
+            <i class="fas fa-video me-3"></i>
+            Enhanced Real-time Detection
+        </h1>
+    </div>
+    
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <p class="section-subtitle mb-4">
+            <i class="fas fa-microchip me-2"></i>
+            Dual ONNX Models • Distance Calculation • Audio Warnings
+        </p>
+    </div>
+
+    <!-- Features Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="feature-badge">
+                <i class="fas fa-eye text-primary"></i>
+                <small>COCO Detection</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="feature-badge">
+                <i class="fas fa-door-open text-success"></i>
+                <small>Custom Objects</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="feature-badge">
+                <i class="fas fa-ruler text-warning"></i>
+                <small>Distance Calc</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="feature-badge">
+                <i class="fas fa-volume-up text-info"></i>
+                <small>Audio Alerts</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <p class="text-muted mb-4">
+            <i class="fas fa-info-circle me-2"></i>
+            Choose camera for real-time detection or upload a video file. Press 'q' to quit detection window.
+        </p>
+    </div>
+
+    <div class="mt-4">
+        <form action="/start-live-detection" method="post" enctype="multipart/form-data" class="d-inline-block">
+            
+            <!-- Source Selection -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="source_type" id="camera_source" value="camera" checked>
+                        <label class="form-check-label" for="camera_source">
+                            <i class="fas fa-video me-2"></i>Use Camera
+                        </label>
+                    </div>
+                    <div class="mt-2">
+                        <label for="camera_id" class="form-label">Camera ID:</label>
+                        <select class="form-select form-select-sm" name="camera_id" id="camera_id">
+                            <option value="0">Camera 0 (Default)</option>
+                            <option value="1">Camera 1</option>
+                            <option value="2">Camera 2</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="source_type" id="video_source" value="video">
+                        <label class="form-check-label" for="video_source">
+                            <i class="fas fa-file-video me-2"></i>Upload Video
+                        </label>
+                    </div>
+                    <div class="mt-2">
+                        <input class="form-control form-control-sm" type="file" name="video_file" id="video_file" 
+                               accept=".mp4,.avi,.mov,.mkv" disabled>
+                        <small class="text-muted">Support: MP4, AVI, MOV, MKV</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button type="submit" class="btn-gradient btn-lg" id="startBtn">
+                    <i class="fas fa-rocket me-2"></i>
+                    Start Enhanced Detection
+                    <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Detection Info -->
+    <div class="row mt-5">
+        <div class="col-md-6">
+            <div class="info-card">
+                <h5><i class="fas fa-cogs me-2"></i>Detection Features</h5>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i>80+ COCO objects</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Custom door & trash detection</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Real-time distance measurement</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Position awareness (L/F/R)</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Face privacy protection</li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="info-card">
+                <h5><i class="fas fa-volume-high me-2"></i>Audio System</h5>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-speaker text-info me-2"></i>Windows TTS integration</li>
+                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Alerts for objects < 2m</li>
+                    <li><i class="fas fa-clock text-muted me-2"></i>5-second cooldown</li>
+                    <li><i class="fas fa-map-pin text-primary me-2"></i>Position-based announcements</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Toggle between camera and video source
+    document.querySelectorAll('input[name="source_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const videoFileInput = document.getElementById('video_file');
+            const cameraIdSelect = document.getElementById('camera_id');
+            
+            if (this.value === 'video') {
+                videoFileInput.disabled = false;
+                cameraIdSelect.disabled = true;
+                document.querySelector('input[name="use_camera"]').value = 'false';
+            } else {
+                videoFileInput.disabled = true;
+                cameraIdSelect.disabled = false;
+                document.querySelector('input[name="use_camera"]').value = 'true';
+            }
+        });
+    });
+
+    // Handle form submission with loading state
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent default form submission
+        
+        const button = this.querySelector('#startBtn');
+        const originalHTML = button.innerHTML;
+        const sourceType = document.querySelector('input[name="source_type"]:checked').value;
+        
+        // Add hidden input for use_camera based on source type
+        const useCameraInput = document.createElement('input');
+        useCameraInput.type = 'hidden';
+        useCameraInput.name = 'use_camera';
+        useCameraInput.value = sourceType === 'camera' ? 'true' : 'false';
+        this.appendChild(useCameraInput);
+        
+        // Update button to loading state
+        const loadingText = sourceType === 'camera' ? 
+            '<i class="fas fa-spinner fa-spin me-2"></i>Starting Camera...' :
+            '<i class="fas fa-spinner fa-spin me-2"></i>Processing Video...';
+            
+        button.innerHTML = loadingText;
+        button.disabled = true;
+        button.classList.add('loading');
+        
+        // Submit form via fetch to handle response
+        fetch('/start-live-detection', {
+            method: 'POST',
+            body: new FormData(this)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'completed') {
+                // Reset button when detection completes
+                button.innerHTML = '<i class="fas fa-check me-2"></i>Detection Completed';
+                button.classList.remove('loading');
+                button.classList.add('btn-success');
+                
+                // Show completion message
+                const message = sourceType === 'camera' ? 
+                    `Camera ${data.camera_id} detection completed` :
+                    'Video detection completed';
+                    
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                    button.classList.remove('btn-success');
+                }, 3000);
+            } else if (data.status === 'error') {
+                button.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Error Occurred';
+                button.classList.remove('loading');
+                button.classList.add('btn-danger');
+                
+                console.error('Detection error:', data.message);
+                
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                    button.classList.remove('btn-danger');
+                }, 3000);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            button.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Connection Error';
+            button.classList.remove('loading');
+            button.classList.add('btn-danger');
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+                button.classList.remove('btn-danger');
+            }, 3000);
+        });
+    });
+</script>
+{% endblock %}

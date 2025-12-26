@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}DroidCam Setup Guide - WeSee{% endblock %}
+
+{% block content %}
+<div class="glass-container ">
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <h1 class="section-title">
+            <i class="fab fa-android me-3"></i>
+            DroidCam Setup Guide
+        </h1>
+    </div>
+    
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <p class="section-subtitle mb-5">
+            Use your Android phone as a high-quality webcam for object detection
+        </p>
+    </div>
+
+    <!-- Step 1: Install DroidCam -->
+    <div class="glass-container mb-4">
+        <h3 class="text-gradient">
+            <i class="fas fa-download me-2"></i>
+            Step 1: Install DroidCam App
+        </h3>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                    <h5><i class="fab fa-android me-2"></i>On Your Android Phone:</h5>
+                    <ul class="custom-list">
+                        <li>Open Google Play Store</li>
+                        <li>Search for "DroidCam Wireless Webcam"</li>
+                        <li>Install the app by Dev47Apps</li>
+                        <li>Grant camera and microphone permissions</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                    <h5><i class="fas fa-laptop me-2"></i>On Your Computer:</h5>
+                    <ul class="custom-list">
+                        <li>Download DroidCam Client from <a href="https://www.dev47apps.com/droidcam/windows/" target="_blank" class="text-decoration-none text-gradient">dev47apps.com</a></li>
+                        <li>Install the DroidCam client software</li>
+                        <li>Restart your computer after installation</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: USB Connection -->
+    <div class="glass-container mb-4">
+        <h3 class="text-gradient">
+            <i class="fas fa-usb me-2"></i>
+            Step 2: USB Connection Setup
+        </h3>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                    <h5><i class="fas fa-mobile-alt me-2"></i>Phone Settings:</h5>
+                    <ul class="custom-list">
+                        <li>Connect phone to computer via USB cable</li>
+                        <li>Enable "Developer Options" in Settings</li>
+                        <li>Turn on "USB Debugging"</li>
+                        <li>Set USB connection to "File Transfer (MTP)" mode</li>
+                        <li>Allow USB debugging when prompted</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                    <h5><i class="fas fa-desktop me-2"></i>Computer Setup:</h5>
+                    <ul class="custom-list">
+                        <li>Open DroidCam Client on computer</li>
+                        <li>Select "USB" connection method</li>
+                        <li>Click "Start" to establish connection</li>
+                        <li>You should see your phone's camera feed</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Enable Developer Options -->
+    <div class="glass-container mb-4">
+        <h3 class="text-gradient">
+            <i class="fas fa-cog me-2"></i>
+            Step 3: Enable Developer Options (Android)
+        </h3>
+        
+        <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+            <div class="alert alert-info">
+                <i class="fas fa-lightbulb me-2"></i>
+                <strong>How to enable Developer Options:</strong>
+            </div>
+            
+            <ol class="custom-list">
+                <li>Open <strong>Settings</strong> on your Android phone</li>
+                <li>Scroll down and tap <strong>"About phone"</strong></li>
+                <li>Find <strong>"Build number"</strong> and tap it <strong>7 times</strong></li>
+                <li>You'll see "You are now a developer!" message</li>
+                <li>Go back to Settings → <strong>"System"</strong> → <strong>"Advanced"</strong></li>
+                <li>Tap <strong>"Developer options"</strong></li>
+                <li>Enable <strong>"USB debugging"</strong></li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Step 4: Using with WeSee -->
+    <div class="glass-container mb-4">
+        <h3 class="text-gradient">
+            <i class="fas fa-play me-2"></i>
+            Step 4: Using DroidCam with WeSee
+        </h3>
+        
+        <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+            <ol class="custom-list">
+                <li>Start DroidCam app on your phone</li>
+                <li>Connect phone to computer via USB</li>
+                <li>Open DroidCam Client on computer and connect</li>
+                <li>In WeSee, select <strong>"DroidCam USB"</strong> as camera source</li>
+                <li>Choose your YOLO model and start detection!</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Troubleshooting -->
+    <div class="glass-container mb-4">
+        <h3 class="text-gradient">
+            <i class="fas fa-wrench me-2"></i>
+            Troubleshooting
+        </h3>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Common Issues:</h5>
+                    <ul class="custom-list">
+                        <li><strong>Connection failed:</strong> Check USB cable and debugging settings</li>
+                        <li><strong>No camera feed:</strong> Restart both DroidCam app and client</li>
+                        <li><strong>Poor quality:</strong> Use better lighting and stable phone position</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                    <h5><i class="fas fa-lightbulb me-2"></i>Tips for Best Results:</h5>
+                    <ul class="custom-list">
+                        <li>Use good lighting for better object detection</li>
+                        <li>Keep phone steady using a tripod or stand</li>
+                        <li>Close other camera apps before using DroidCam</li>
+                        <li>Use landscape orientation for wider view</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Start Button -->
+    <div class="text-center">
+        <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+            <a href="/object2" class="btn-gradient">
+                <i class="fas fa-camera me-2"></i>
+                Try Camera Detection Now
+                <i class="fas fa-arrow-right ms-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .custom-list {
+        list-style: none;
+        padding-left: 0;
+    }
+    
+    .custom-list li {
+        padding: 0.5rem 0;
+        border-left: 3px solid var(--emerald-mid);
+        padding-left: 1rem;
+        margin-bottom: 0.5rem;
+        background: rgba(16, 185, 129, 0.05);
+        border-radius: 0 8px 8px 0;
+    }
+    
+    .alert {
+        border: none;
+        border-radius: 10px;
+        padding: 1rem;
+        background: rgba(59, 130, 246, 0.1);
+        border-left: 4px solid #3b82f6;
+    }
+</style>
+{% endblock %}

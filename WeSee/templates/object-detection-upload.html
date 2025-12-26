@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Object Detection - Upload Video{% endblock %}
+
+{% block content %}
+<!-- Upload Section -->
+<div class="glass-container">
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <h1 class="section-title">
+            <i class="fas fa-upload me-3"></i>
+            Upload Image or Video for Object Detection
+        </h1>
+    </div>
+    
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <p class="section-subtitle mb-5">
+            Select an image or video file to detect and identify objects using AI
+        </p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <form method="POST" action="/video-detection" enctype="multipart/form-data" class="upload-form">
+                
+                <div class="upload-area text-center p-5 mb-4">
+                    <i class="fas fa-cloud-upload-alt upload-icon mb-3"></i>
+                    <h5 class="mb-3">Choose Image or Video File</h5>
+                    <input type="file" id="file" name="file" class="form-control-file" accept="image/*,video/*" required>
+                    <p class="text-muted mt-3 mb-0">Supported formats: JPG, PNG, GIF</p>
+                </div>
+                
+                <button type="submit" class="btn-gradient w-100" onclick="showLoading(this)">
+                    <i class="fas fa-search me-2"></i>
+                    Detect Objects
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section -->
+{% if error %}
+<div class="glass-container mt-5">
+    <div class="alert alert-danger border-0" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {{ error }}
+    </div>
+</div>
+{% endif %}
+
+{% if detection_result %}
+<div class="glass-container mt-5">
+    <h2 class="section-title">
+        <i class="fas fa-eye me-3"></i>
+        Detection Results
+    </h2>
+    
+    <div class="results-content">
+        <div class="detection-text mb-4">
+            <h4 class="text-gradient">{{ detection_result }}</h4>
+        </div>
+        
+        {% if audio_file %}
+        <div class="audio-player">
+            <h5 class="mb-3">
+                <i class="fas fa-volume-up me-2"></i>
+                Listen to Results
+            </h5>
+            <audio controls autoplay class="w-100">
+                <source src="{{ url_for('uploaded_file', filename=audio_file) }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .upload-area {
+        border: 2px dashed var(--emerald-mid);
+        border-radius: 15px;
+        background: rgba(16, 185, 129, 0.05);
+        cursor: pointer;
+    }
+    
+    .upload-area:hover {
+        border-color: var(--emerald-start);
+        background: rgba(16, 185, 129, 0.1);
+    }
+    
+    .upload-icon {
+        font-size: 3rem;
+        color: var(--emerald-mid);
+    }
+    
+    .form-control-file {
+        border: 2px solid var(--emerald-mid);
+        border-radius: 8px;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.9);
+        width: 100%;
+    }
+    
+    .form-control-file:focus {
+        border-color: var(--emerald-start);
+        box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.25);
+    }
+    
+    .results-content {
+        text-align: center;
+    }
+    
+    .detection-text {
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 10px;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    
+    .audio-player audio {
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.9);
+    }
+    
+    .alert {
+        background: rgba(239, 68, 68, 0.1) !important;
+        color: #dc2626 !important;
+        border-radius: 10px;
+    }
+</style>
+
+{% endblock %}

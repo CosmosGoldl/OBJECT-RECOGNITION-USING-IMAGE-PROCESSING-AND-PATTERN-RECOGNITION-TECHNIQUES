@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}WeSee - AI Vision Assistant{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="glass-container text-center ">
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <h1 class="section-title">
+            <i class="fas fa-eye me-3"></i>
+            Welcome to WeSee
+        </h1>
+    </div>
+    
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <p class="section-subtitle">
+            Your AI-powered vision assistant for object detection
+        </p>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon">
+                    <i class="fas fa-upload"></i>
+                </div>
+                <h3 class="h4 fw-bold mb-3">Upload Video Detection</h3>
+                <p class="text-muted mb-4">Upload images or videos and detect objects using AI vision models</p>
+                <a href="/upload-video" class="btn-gradient">
+                    <i class="fas fa-arrow-right"></i>
+                    Get Started
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon">
+                    <i class="fas fa-video"></i>
+                </div>
+                <h3 class="h4 fw-bold mb-3">Live Detection</h3>
+                <p class="text-muted mb-4">Real-time object detection using your camera with instant results</p>
+                <a href="/start-live-detection" class="btn-gradient">
+                    <i class="fas fa-arrow-right"></i>
+                    Get Started
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="glass-container ">
+    <h2 class="section-title">Features</h2>
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <h4 class="fw-bold">Upload Images</h4>
+                    <p class="text-muted">Upload your images for processing</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <h4 class="fw-bold">Capture Photos</h4>
+                    <p class="text-muted">Use your camera to capture images</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <h4 class="fw-bold">Live Processing</h4>
+                    <p class="text-muted">Real-time image analysis</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="glass-container text-center ">
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <h2 class="section-title">Ready to Get Started?</h2>
+        <p class="section-subtitle">Choose your preferred method to begin using WeSee</p>
+        
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+            <a href="/text" class="btn-gradient">
+                <i class="fas fa-font me-2"></i>
+                Text Recognition
+            </a>
+            <a href="/object" class="btn-gradient">
+                <i class="fas fa-search me-2"></i>
+                Object Detection
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

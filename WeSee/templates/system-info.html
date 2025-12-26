@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}System Information - WeSee{% endblock %}
+
+{% block content %}
+<!-- System Info Header -->
+<div class="glass-container text-center">
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <h1 class="section-title">
+            <i class="fas fa-info-circle me-3"></i>
+            System Information
+        </h1>
+    </div>
+    
+    <div class="hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <p class="section-subtitle">
+            <i class="fas fa-cogs me-2"></i>
+            Technical details about WeSee's capabilities and performance
+        </p>
+    </div>
+</div>
+
+<!-- YOLO Models Information -->
+<div class="glass-container">
+    <h3 class="section-title">
+        <i class="fas fa-brain me-3"></i>
+        YOLO Models Available
+    </h3>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <h5 class="fw-bold">YOLOv5s</h5>
+                <div class="badge bg-success mb-2">Currently Active</div>
+                <ul class="text-start">
+                    <li>Size: ~14MB</li>
+                    <li>Speed: ~50ms per frame (CPU)</li>
+                    <li>Accuracy: mAP 37.4%</li>
+                    <li>Best for: Real-time detection</li>
+                    <li>Status: ✅ Available</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <h5 class="fw-bold">YOLOv10s</h5>
+                <div class="badge bg-warning text-dark mb-2">Coming Soon</div>
+                <ul class="text-start">
+                    <li>Size: ~16MB (estimated)</li>
+                    <li>Speed: ~40ms per frame (CPU)</li>
+                    <li>Accuracy: mAP 42.0% (expected)</li>
+                    <li>Best for: Latest technology</li>
+                    <li>Status: 🚧 In development</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Comparison -->
+<div class="glass-container">
+    <h3 class="section-title">
+        <i class="fas fa-chart-bar me-3"></i>
+        CPU vs GPU Performance
+    </h3>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                    <i class="fas fa-microchip text-white"></i>
+                </div>
+                <h5 class="fw-bold">CPU Processing</h5>
+                <ul class="text-start">
+                    <li>Speed: 50-100ms per frame</li>
+                    <li>Memory: 500MB - 1GB</li>
+                    <li>Power: Low consumption</li>
+                    <li>Compatibility: Universal</li>
+                    <li>Cost: No additional hardware</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon" style="background: linear-gradient(135deg, #10b981, #047857);">
+                    <i class="fas fa-rocket text-white"></i>
+                </div>
+                <h5 class="fw-bold">GPU Processing</h5>
+                <ul class="text-start">
+                    <li>Speed: 5-15ms per frame</li>
+                    <li>Memory: 2GB - 4GB VRAM</li>
+                    <li>Power: High consumption</li>
+                    <li>Compatibility: CUDA/OpenCL</li>
+                    <li>Cost: Dedicated GPU required</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cross-Platform Features -->
+<div class="glass-container">
+    <h3 class="section-title">
+        <i class="fas fa-globe me-3"></i>
+        Cross-Platform Capabilities
+    </h3>
+    
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="feature-card text-center hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon">
+                    <i class="fab fa-windows"></i>
+                </div>
+                <h5 class="fw-bold">Windows</h5>
+                <p>DirectShow cameras, Windows Speech API</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="feature-card text-center hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon">
+                    <i class="fab fa-apple"></i>
+                </div>
+                <h5 class="fw-bold">macOS</h5>
+                <p>AVFoundation cameras, macOS Speech Synthesis</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="feature-card text-center hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon">
+                    <i class="fab fa-linux"></i>
+                </div>
+                <h5 class="fw-bold">Linux</h5>
+                <p>V4L2 cameras, eSpeak/Festival TTS</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cloud Integration -->
+<div class="glass-container">
+    <h3 class="section-title">
+        <i class="fas fa-cloud me-3"></i>
+        Cloud Integration Options
+    </h3>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fab fa-google text-white"></i>
+                </div>
+                <h5 class="fw-bold">Google Colab</h5>
+                <ul class="text-start">
+                    <li>Free GPU access (T4/P100)</li>
+                    <li>12 hour session limit</li>
+                    <li>Pre-installed libraries</li>
+                    <li>Easy model deployment</li>
+                    <li>REST API integration</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+                <div class="feature-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <i class="fas fa-server text-white"></i>
+                </div>
+                <h5 class="fw-bold">Local Processing</h5>
+                <ul class="text-start">
+                    <li>No internet dependency</li>
+                    <li>Full privacy control</li>
+                    <li>Custom model training</li>
+                    <li>Unlimited processing time</li>
+                    <li>Hardware optimization</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Architecture Overview -->
+<div class="glass-container">
+    <h3 class="section-title">
+        <i class="fas fa-sitemap me-3"></i>
+        System Architecture
+    </h3>
+    
+    <div class="feature-card hover-target" onmouseover="startSpeaking(this)" onmouseout="stopSpeaking()">
+        <div class="text-center mb-4">
+            <div class="feature-icon mx-auto" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                <i class="fas fa-project-diagram text-white"></i>
+            </div>
+        </div>
+        
+        <div class="row text-start">
+            <div class="col-md-6">
+                <h6 class="fw-bold"><i class="fas fa-layer-group me-2"></i>Frontend Layer</h6>
+                <ul>
+                    <li>Flask web framework</li>
+                    <li>Bootstrap 5 responsive UI</li>
+                    <li>Glassmorphism design</li>
+                    <li>Real-time audio feedback</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-6">
+                <h6 class="fw-bold"><i class="fas fa-cogs me-2"></i>Backend Layer</h6>
+                <ul>
+                    <li>OpenCV for computer vision</li>
+                    <li>YOLOv5/v8 object detection</li>
+                    <li>Tesseract OCR engine</li>
+                    <li>Multi-process handling</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

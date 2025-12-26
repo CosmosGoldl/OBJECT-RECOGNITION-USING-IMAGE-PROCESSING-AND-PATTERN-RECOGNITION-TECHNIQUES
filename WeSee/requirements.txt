@@ -1,0 +1,15 @@
+Flask==2.0.2
+# Werkzeug 3.x breaks Flask 2.0.x (url_quote removed). Pin to <3  
+Werkzeug>=2.0,<3
+# OpenCV for computer vision
+opencv-python>=4.8.0,<4.10
+numpy>=1.23,<2
+Pillow>=9.0.0
+# ONNX Runtime for model inference (supports both CPU and GPU)
+onnxruntime>=1.16.0
+# Optional GPU acceleration (uncomment if you have NVIDIA GPU with CUDA)
+# onnxruntime-gpu>=1.16.0
+# Utilities
+imutils==0.5.4
+requests>=2.25.1
+# Note: Using Windows native TTS instead of gTTS for better offline performance
