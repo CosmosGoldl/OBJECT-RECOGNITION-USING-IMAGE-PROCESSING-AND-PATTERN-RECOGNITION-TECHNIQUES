@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeSee - Object Detection System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: #ecf0f1;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #3498db;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            color: #bdc3c7;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            background: rgba(52, 73, 94, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #34495e;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.video {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .btn.settings {
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+        }
+
+        .btn.stop {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+        }
+
+        .video-section {
+            background: rgba(26, 26, 26, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #34495e;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .video-stream {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 400px;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #bdc3c7;
+            border-radius: 10px;
+        }
+
+        .video-placeholder .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #3498db;
+        }
+
+        .upload-section {
+            background: rgba(52, 73, 94, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px dashed #3498db;
+            text-align: center;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-upload label {
+            display: inline-block;
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload label:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .settings-panel {
+            background: rgba(52, 73, 94, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .settings-row label {
+            min-width: 150px;
+            font-weight: bold;
+        }
+
+        .settings-row input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #34495e;
+            border-radius: 5px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-size: 1rem;
+        }
+
+        .info-panel {
+            background: rgba(52, 73, 94, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .message.success {
+            background: rgba(46, 204, 113, 0.2);
+            border-left: 4px solid #2ecc71;
+            color: #2ecc71;
+        }
+
+        .message.error {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 4px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .message.warning {
+            background: rgba(241, 196, 15, 0.2);
+            border-left: 4px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(52, 73, 94, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #34495e;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .settings-row label {
+                min-width: auto;
+                margin-bottom: 5px;
+            }
+
+            .settings-row input {
+                width: 100%;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👁️ WeSee - Object Detection System</h1>
+            <div class="subtitle">Real-time AI Object Detection & Distance Measurement</div>
+            <div id="model-status" class="subtitle">🔧 Checking system status...</div>
+        </div>
+
+        <div class="status-bar">
+            <div id="status-text">🔴 Ready - Select detection mode</div>
+        </div>
+
+        <div id="messages"></div>
+
+        <div class="controls">
+            <button id="btn-camera" class="btn" onclick="startCamera()">
+                📹 Real-time Detection<br>
+                <small>(Camera/DroidCam)</small>
+            </button>
+            
+            <button id="btn-video" class="btn video" onclick="showUploadSection()">
+                🎬 Video Detection<br>
+                <small>(Upload Video File)</small>
+            </button>
+            
+            <button id="btn-settings" class="btn settings" onclick="showSettings()">
+                ⚙️ DroidCam Settings<br>
+                <small>(Configure IP Address)</small>
+            </button>
+            
+            <button id="btn-stop" class="btn stop" onclick="stopDetection()" disabled>
+                ⏹ Stop Detection<br>
+                <small>(End Current Session)</small>
+            </button>
+        </div>
+
+        <div id="upload-section" class="upload-section" style="display: none;">
+            <h3>📤 Upload Video File</h3>
+            <div class="file-upload">
+                <input type="file" id="video-file" accept="video/*">
+                <label for="video-file">Choose Video File</label>
+            </div>
+            <button class="btn" onclick="uploadAndProcess()">🚀 Upload & Start Detection</button>
+            <div id="upload-progress"></div>
+        </div>
+
+        <div id="settings-panel" class="settings-panel" style="display: none;">
+            <h3>⚙️ DroidCam Settings</h3>
+            <div class="settings-row">
+                <label for="droidcam-ip">DroidCam IP Address:</label>
+                <input type="text" id="droidcam-ip" value="192.168.1.100" placeholder="192.168.1.100">
+                <button class="btn" onclick="saveDroidCamIP()">💾 Save</button>
+            </div>
+            <div class="info-panel">
+                <strong>💡 How to find DroidCam IP:</strong><br>
+                1. Open DroidCam app on your phone<br>
+                2. Select "WiFi IP" option<br>
+                3. Note the IP address shown (e.g., 192.168.1.100)<br>
+                4. Enter that IP address above
+            </div>
+        </div>
+
+        <div class="video-section">
+            <div class="video-container" id="video-container">
+                <div class="video-placeholder" id="video-placeholder">
+                    <div class="icon">👁️</div>
+                    <h2>WeSee Detection Ready</h2>
+                    <p>Select a detection mode to start</p>
+                    <p><small>📹 Real-time: Connect with DroidCam | 🎬 Video: Upload files</small></p>
+                </div>
+                <img id="video-stream" class="video-stream" style="display: none;" src="" alt="Video Stream">
+            </div>
+        </div>
+
+        <div class="stats" id="stats-section" style="display: none;">
+            <div class="stat-card">
+                <div class="value" id="stat-frames">0</div>
+                <div class="label">Frames Processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-mode">-</div>
+                <div class="label">Detection Mode</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-ip">-</div>
+                <div class="label">DroidCam IP</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-models">-</div>
+                <div class="label">AI Models</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let statusInterval;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus();
+            statusInterval = setInterval(updateStatus, 2000);
+        });
+
+        // Update system status
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status-text').textContent = data.status;
+                    document.getElementById('droidcam-ip').value = data.droidcam_ip;
+                    
+                    // Update model status
+                    const modelStatus = data.has_models ? '🤖 AI Models: READY' : '🔧 Simulation Mode';
+                    document.getElementById('model-status').textContent = modelStatus;
+                    document.getElementById('model-status').style.color = data.has_models ? '#27ae60' : '#f39c12';
+                    
+                    // Update stats
+                    document.getElementById('stat-frames').textContent = data.frame_count;
+                    document.getElementById('stat-mode').textContent = data.current_mode || '-';
+                    document.getElementById('stat-ip').textContent = data.droidcam_ip;
+                    document.getElementById('stat-models').textContent = data.has_models ? 'Ready' : 'Simulation';
+                    
+                    // Update UI state
+                    isRunning = data.is_running;
+                    updateButtonStates();
+                    
+                    // Show/hide video stream
+                    if (isRunning) {
+                        document.getElementById('video-placeholder').style.display = 'none';
+                        document.getElementById('video-stream').style.display = 'block';
+                        document.getElementById('video-stream').src = '/video_feed?' + new Date().getTime();
+                        document.getElementById('stats-section').style.display = 'grid';
+                    } else {
+                        document.getElementById('video-placeholder').style.display = 'flex';
+                        document.getElementById('video-stream').style.display = 'none';
+                        document.getElementById('stats-section').style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Status update error:', error);
+                });
+        }
+
+        // Update button states
+        function updateButtonStates() {
+            const buttons = ['btn-camera', 'btn-video', 'btn-settings'];
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = isRunning;
+            });
+            document.getElementById('btn-stop').disabled = !isRunning;
+        }
+
+        // Start camera detection
+        function startCamera() {
+            if (isRunning) return;
+            
+            showMessage('🟡 Starting camera detection...', 'warning');
+            
+            fetch('/start_camera', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('✅ ' + data.message, 'success');
+                } else {
+                    showMessage('❌ ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('❌ Network error: ' + error.message, 'error');
+            });
+        }
+
+        // Show upload section
+        function showUploadSection() {
+            const section = document.getElementById('upload-section');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Upload and process video
+        function uploadAndProcess() {
+            const fileInput = document.getElementById('video-file');
+            if (!fileInput.files[0]) {
+                showMessage('❌ Please select a video file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('video', fileInput.files[0]);
+
+            document.getElementById('upload-progress').innerHTML = '<div class="loading"></div>Uploading...';
+
+            fetch('/upload_video', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('upload-progress').innerHTML = '';
+                
+                if (data.success) {
+                    showMessage('✅ ' + data.message, 'success');
+                    
+                    // Start video detection
+                    fetch('/start_video', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({video_path: data.filepath})
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            showMessage('🎬 ' + result.message, 'success');
+                            document.getElementById('upload-section').style.display = 'none';
+                        } else {
+                            showMessage('❌ ' + result.message, 'error');
+                        }
+                    });
+                } else {
+                    showMessage('❌ ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                document.getElementById('upload-progress').innerHTML = '';
+                showMessage('❌ Upload error: ' + error.message, 'error');
+            });
+        }
+
+        // Show settings panel
+        function showSettings() {
+            const panel = document.getElementById('settings-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Save DroidCam IP
+        function saveDroidCamIP() {
+            const ip = document.getElementById('droidcam-ip').value;
+            
+            fetch('/set_droidcam_ip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ip: ip})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('✅ ' + data.message, 'success');
+                } else {
+                    showMessage('❌ ' + data.message, 'error');
+                }
+            });
+        }
+
+        // Stop detection
+        function stopDetection() {
+            if (!isRunning) return;
+            
+            fetch('/stop', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage('⏹ ' + data.message, 'warning');
+            });
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            
+            messagesDiv.insertBefore(messageDiv, messagesDiv.firstChild);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
+        });
+    </script>
+</body>
+</html>
