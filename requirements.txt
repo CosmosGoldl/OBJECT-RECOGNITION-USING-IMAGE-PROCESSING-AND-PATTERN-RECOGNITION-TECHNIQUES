@@ -3,7 +3,8 @@ Flask==2.0.2
 Werkzeug>=2.0,<3
 # OpenCV for computer vision
 opencv-python>=4.8.0,<4.10
-numpy>=1.23,<2
+# Use stable numpy build (avoid experimental MINGW builds)
+numpy>=1.24.0,<1.27.0
 Pillow>=9.0.0
 # ONNX Runtime for model inference (supports both CPU and GPU)
 onnxruntime>=1.16.0

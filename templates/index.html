@@ -306,6 +306,55 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .project-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .project-banner h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .team-table {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .team-table thead {
+            background: rgba(0,0,0,0.3);
+        }
+
+        .team-table th {
+            padding: 12px 15px;
+            text-align: left;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .team-table td {
+            padding: 10px 15px;
+            color: #f0f0f0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .team-table tbody tr:hover {
+            background: rgba(255,255,255,0.1);
+        }
     </style>
 </head>
 <body>
@@ -314,6 +363,32 @@
             <h1>👁️ WeSee - Object Detection System</h1>
             <div class="subtitle">Real-time AI Object Detection & Distance Measurement</div>
             <div id="model-status" class="subtitle">🔧 Checking system status...</div>
+        </div>
+
+        <div class="project-banner">
+            <h2>📚 Object Recognition using Image Processing and Pattern Recognition Techniques</h2>
+            <table class="team-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Student ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Nguyen Yen Nhi</td>
+                        <td>23110048</td>
+                    </tr>
+                    <tr>
+                        <td>Nguyen Anh Thi</td>
+                        <td>23110064</td>
+                    </tr>
+                    <tr>
+                        <td>Nguyen Ngoc Minh</td>
+                        <td>21110784</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="status-bar">
@@ -405,11 +480,17 @@
     <script>
         let isRunning = false;
         let statusInterval;
+        let isDroidCamInputFocused = false;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             updateStatus();
             statusInterval = setInterval(updateStatus, 2000);
+            
+            // Track when user is editing DroidCam IP field
+            const droidcamInput = document.getElementById('droidcam-ip');
+            droidcamInput.addEventListener('focus', () => isDroidCamInputFocused = true);
+            droidcamInput.addEventListener('blur', () => isDroidCamInputFocused = false);
         });
 
         // Update system status
@@ -418,7 +499,11 @@
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('status-text').textContent = data.status;
-                    document.getElementById('droidcam-ip').value = data.droidcam_ip;
+                    
+                    // Only update DroidCam IP input if user is not currently editing it
+                    if (!isDroidCamInputFocused) {
+                        document.getElementById('droidcam-ip').value = data.droidcam_ip;
+                    }
                     
                     // Update model status
                     const modelStatus = data.has_models ? '🤖 AI Models: READY' : '🔧 Simulation Mode';
