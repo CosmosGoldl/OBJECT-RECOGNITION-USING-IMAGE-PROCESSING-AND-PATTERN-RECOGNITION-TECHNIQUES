@@ -1,9 +1,11 @@
+import warnings
+import os
+
 from flask import Flask, render_template, request, jsonify, Response
 import cv2
 import threading
 import time
 import json
-import os
 from datetime import datetime
 import numpy as np
 import subprocess
@@ -31,10 +33,10 @@ class WeSeeWebApp:
         self.frame_count = 0
         self.has_models = False
         
-        # Model configurations
-        self.model_path = None
-        self.session = None
-        self.class_names = [
+        # Dual Model configurations
+        self.session_coco = None
+        self.session_custom = None
+        self.class_names_coco = [
             'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
             'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog',
             'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella',
@@ -46,53 +48,170 @@ class WeSeeWebApp:
             'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book',
             'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
         ]
+        self.class_names_custom = ['door', 'trash_can']
+        
+        # Gamma correction for preprocessing
+        gamma = 0.8
+        invGamma = 1.0 / gamma
+        self.gamma_lut = np.array([((i / 255.0) ** invGamma) * 255
+                                    for i in range(256)]).astype("uint8")
         
         # Distance warning settings
-        self.warning_distance_cm = 100
+        self.warning_distance_cm = 200  # 2 meters
         self.last_warning_time = 0
-        self.warning_cooldown = 2  # seconds
+        self.warning_cooldown = 5  # seconds
+        
+        # Audio warning queue
+        self.audio_queue = Queue()
+        self.audio_is_speaking = False
+        self.setup_audio_system()
+        
+        # Performance optimization - cache detections
+        self.last_detections = []
+        self.detection_cache_count = 0
+        
+        # Comprehensive class sizes for accurate distance estimation
+        self.class_avg_sizes = {
+            # Custom objects
+            "door": {"width_ratio": 0.8},
+            "trash_can": {"width_ratio": 2.5},
+            # People and animals
+            "person": {"width_ratio": 2.5},
+            "bird": {"width_ratio": 8.0},
+            "cat": {"width_ratio": 1.9},
+            "dog": {"width_ratio": 1.5},
+            "horse": {"width_ratio": 0.8},
+            "sheep": {"width_ratio": 1.2},
+            "cow": {"width_ratio": 0.6},
+            "elephant": {"width_ratio": 0.3},
+            "bear": {"width_ratio": 0.9},
+            "zebra": {"width_ratio": 0.8},
+            "giraffe": {"width_ratio": 0.4},
+            # Vehicles
+            "bicycle": {"width_ratio": 2.3},
+            "car": {"width_ratio": 0.37},
+            "motorcycle": {"width_ratio": 2.4},
+            "airplane": {"width_ratio": 0.1},
+            "bus": {"width_ratio": 0.3},
+            "train": {"width_ratio": 0.2},
+            "truck": {"width_ratio": 0.25},
+            "boat": {"width_ratio": 0.5},
+            # Traffic
+            "traffic light": {"width_ratio": 2.95},
+            "fire hydrant": {"width_ratio": 3.0},
+            "stop sign": {"width_ratio": 2.55},
+            "parking meter": {"width_ratio": 4.0},
+            # Large objects
+            "bench": {"width_ratio": 1.6},
+            "chair": {"width_ratio": 2.2},
+            "couch": {"width_ratio": 1.0},
+            "bed": {"width_ratio": 0.8},
+            "dining table": {"width_ratio": 1.2},
+            "toilet": {"width_ratio": 2.8},
+            "tv": {"width_ratio": 1.8},
+            # Medium objects
+            "backpack": {"width_ratio": 3.5},
+            "umbrella": {"width_ratio": 2.8},
+            "handbag": {"width_ratio": 4.0},
+            "tie": {"width_ratio": 8.0},
+            "suitcase": {"width_ratio": 2.0},
+            "laptop": {"width_ratio": 3.2},
+            "book": {"width_ratio": 6.0},
+            "clock": {"width_ratio": 3.0},
+            "vase": {"width_ratio": 3.5},
+            # Sports
+            "frisbee": {"width_ratio": 4.5},
+            "skis": {"width_ratio": 6.0},
+            "snowboard": {"width_ratio": 3.5},
+            "sports ball": {"width_ratio": 5.5},
+            "kite": {"width_ratio": 2.5},
+            "baseball bat": {"width_ratio": 4.8},
+            "baseball glove": {"width_ratio": 4.2},
+            "skateboard": {"width_ratio": 3.8},
+            "surfboard": {"width_ratio": 2.8},
+            "tennis racket": {"width_ratio": 3.2},
+            # Small objects
+            "bottle": {"width_ratio": 8.0},
+            "wine glass": {"width_ratio": 8.5},
+            "cup": {"width_ratio": 9.0},
+            "fork": {"width_ratio": 12.0},
+            "knife": {"width_ratio": 10.0},
+            "spoon": {"width_ratio": 11.0},
+            "bowl": {"width_ratio": 6.0},
+            "banana": {"width_ratio": 10.0},
+            "apple": {"width_ratio": 8.5},
+            "sandwich": {"width_ratio": 5.0},
+            "orange": {"width_ratio": 9.0},
+            "broccoli": {"width_ratio": 7.0},
+            "carrot": {"width_ratio": 12.0},
+            "hot dog": {"width_ratio": 8.0},
+            "pizza": {"width_ratio": 4.0},
+            "donut": {"width_ratio": 9.0},
+            "cake": {"width_ratio": 4.5},
+            # Household
+            "potted plant": {"width_ratio": 3.0},
+            "mouse": {"width_ratio": 10.0},
+            "remote": {"width_ratio": 7.0},
+            "keyboard": {"width_ratio": 3.8},
+            "cell phone": {"width_ratio": 8.0},
+            "microwave": {"width_ratio": 1.8},
+            "oven": {"width_ratio": 1.5},
+            "toaster": {"width_ratio": 3.5},
+            "sink": {"width_ratio": 1.4},
+            "refrigerator": {"width_ratio": 0.9},
+            "scissors": {"width_ratio": 8.0},
+            "teddy bear": {"width_ratio": 3.2},
+            "hair drier": {"width_ratio": 5.0},
+            "toothbrush": {"width_ratio": 12.0},
+        }
         
         self.load_model()
     
     def load_model(self):
-        """Load ONNX model"""
+        """Load ONNX models - COCO and Custom"""
         if not ONNX_AVAILABLE:
             print("⚠️ ONNX Runtime not available. Running in simulation mode.")
-            self.session = None
+            self.session_coco = None
+            self.session_custom = None
             self.has_models = False
             return
             
         try:
-            # Try loading the best model first
-            model_path = "models/best.onnx"
-            if os.path.exists(model_path):
-                self.model_path = model_path
-                self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-                print("✓ Model loaded successfully: best.onnx")
-                self.has_models = True
-                return
+            # Load COCO model (yolov10s.onnx)
+            coco_path = "models/yolov10s.onnx"
+            if os.path.exists(coco_path):
+                self.session_coco = ort.InferenceSession(coco_path, providers=['CPUExecutionProvider'])
+                print("✓ COCO Model loaded: yolov10s.onnx")
+            else:
+                print("⚠️ COCO model not found: yolov10s.onnx")
+                self.session_coco = None
             
-            # Fallback to yolov10s model
-            model_path = "models/yolov10s.onnx"
-            if os.path.exists(model_path):
-                self.model_path = model_path
-                self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-                print("✓ Model loaded successfully: yolov10s.onnx")
-                self.has_models = True
-                return
+            # Load Custom model (best.onnx)
+            custom_path = "models/best.onnx"
+            if os.path.exists(custom_path):
+                self.session_custom = ort.InferenceSession(custom_path, providers=['CPUExecutionProvider'])
+                print("✓ Custom Model loaded: best.onnx")
+            else:
+                print("⚠️ Custom model not found: best.onnx")
+                self.session_custom = None
             
-            print("⚠️ No model found. Running in simulation mode.")
-            self.session = None
-            self.has_models = False
+            # Check if at least one model is loaded
+            self.has_models = (self.session_coco is not None) or (self.session_custom is not None)
+            
+            if self.has_models:
+                print("🚀 DUAL MODEL SYSTEM READY!")
+            else:
+                print("⚠️ No models found. Running in simulation mode.")
             
         except Exception as e:
-            print(f"⚠️ Error loading model: {e}")
+            print(f"⚠️ Error loading models: {e}")
             print("📝 Running in simulation mode")
-            self.session = None
+            self.session_coco = None
+            self.session_custom = None
             self.has_models = False
     
     def preprocess_image(self, image):
-        """Preprocess image for ONNX model"""
+        """Preprocess image for ONNX model with gamma correction"""
         # Resize image to model input size (640x640 for YOLOv10)
         input_size = 640
         original_height, original_width = image.shape[:2]
@@ -103,10 +222,10 @@ class WeSeeWebApp:
         new_height = int(original_height * scale)
         
         # Resize image
-        resized = cv2.resize(image, (new_width, new_height))
+        resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
         
-        # Create padded image
-        padded = np.full((input_size, input_size, 3), 128, dtype=np.uint8)
+        # Create padded image with letterbox
+        padded = np.full((input_size, input_size, 3), 114, dtype=np.uint8)
         
         # Calculate padding offsets
         pad_x = (input_size - new_width) // 2
@@ -115,8 +234,10 @@ class WeSeeWebApp:
         # Place resized image in center
         padded[pad_y:pad_y + new_height, pad_x:pad_x + new_width] = resized
         
-        # Convert to RGB and normalize
-        padded = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
+        # Apply gamma correction
+        padded = cv2.LUT(padded, self.gamma_lut)
+        
+        # Normalize
         padded = padded.astype(np.float32) / 255.0
         
         # Add batch dimension and transpose to CHW format
@@ -125,7 +246,7 @@ class WeSeeWebApp:
         
         return padded, scale, pad_x, pad_y, original_width, original_height
     
-    def postprocess_detections(self, outputs, scale, pad_x, pad_y, original_width, original_height, conf_threshold=0.5):
+    def postprocess_detections(self, outputs, scale, pad_x, pad_y, original_width, original_height, class_names, conf_threshold=0.5):
         """Process model outputs to get final detections"""
         detections = []
         
@@ -155,7 +276,7 @@ class WeSeeWebApp:
                         height = y2 - y1
                         
                         if width > 0 and height > 0:
-                            class_name = self.class_names[int(class_id)] if int(class_id) < len(self.class_names) else "unknown"
+                            class_name = class_names[int(class_id)] if int(class_id) < len(class_names) else "unknown"
                             
                             detections.append({
                                 'bbox': [int(x1), int(y1), int(width), int(height)],
@@ -169,33 +290,137 @@ class WeSeeWebApp:
         
         return detections
     
-    def estimate_distance(self, bbox, image_height):
-        """Estimate distance to object based on bounding box size"""
+    def calculate_distance(self, obj_w, frame_w, label):
+        """Calculate distance based on object width - supports all object classes"""
         try:
-            bbox_height = bbox[3]
-            # Simple distance estimation based on bbox height
-            # Assuming average person height is 170cm
-            if bbox_height > 0:
-                # This is a rough estimation - you might want to calibrate this
-                distance_cm = (170 * image_height) / (bbox_height * 10)
-                return min(distance_cm, 500)  # Cap at 5 meters
-            return 500
+            if label in self.class_avg_sizes:
+                ratio = self.class_avg_sizes[label].get("width_ratio", 2.0)
+            else:
+                ratio = 2.0
+            obj_w *= ratio
+            distance = (frame_w * 0.5) / np.tan(np.radians(70 / 2)) / (obj_w + 1e-6)
+            return round(distance, 2)
         except:
-            return 500
+            return 5.0
     
-    def play_audio_warning_macos(self, message):
-        """Play audio warning on macOS using 'say' command"""
+    def get_position(self, frame_w, cx):
+        """Get object position: LEFT, FORWARD, or RIGHT"""
+        if cx < frame_w / 3:
+            return "LEFT"
+        elif cx < frame_w * 2 / 3:
+            return "FORWARD"
+        else:
+            return "RIGHT"
+    
+    def validate_trash_can(self, x1, y1, x2, y2, orig_h, orig_w):
+        """Validate trash_can detection to reduce false positives"""
         try:
-            current_time = time.time()
-            if current_time - self.last_warning_time > self.warning_cooldown:
-                subprocess.run(['say', message], check=False)
-                self.last_warning_time = current_time
+            box_height = y2 - y1
+            box_width = x2 - x1
+            box_center_y = (y1 + y2) // 2
+            box_area = box_width * box_height
+            frame_area = orig_w * orig_h
+            
+            # Reject if too high in frame
+            if box_center_y < orig_h * 0.3:
+                return False
+            
+            # Check aspect ratio
+            aspect_ratio = box_height / (box_width + 1e-6)
+            if aspect_ratio < 0.5 or aspect_ratio > 3.0:
+                return False
+            
+            # Reject if too large (likely misdetection)
+            area_ratio = box_area / frame_area
+            if area_ratio > 0.7:
+                return False
+            
+            # Reject if too small
+            min_area = frame_area * 0.001
+            if box_area < min_area:
+                return False
+            
+            return True
+        except:
+            return False
+    
+    def blur_person_face(self, frame, x1, y1, x2, y2):
+        """Apply Gaussian blur to person's face area for privacy"""
+        try:
+            h = y2 - y1
+            face_h = int(0.08 * h)
+            if face_h > 0 and y1 + face_h <= frame.shape[0]:
+                face = frame[y1:y1 + face_h, x1:x2]
+                if face.size > 0:
+                    frame[y1:y1 + face_h, x1:x2] = cv2.GaussianBlur(face, (15, 15), 0)
+            return frame
         except Exception as e:
-            print(f"Error playing audio: {e}")
+            print(f"Face blur error: {e}")
+            return frame
+    
+    def setup_audio_system(self):
+        """Initialize audio warning system with PowerShell TTS for Windows"""
+        def audio_worker():
+            try:
+                last_announcement = 0
+                
+                while True:
+                    current_time = time.time()
+                    
+                    if not self.audio_queue.empty() and (current_time - last_announcement) > self.warning_cooldown:
+                        self.audio_is_speaking = True
+                        
+                        # Collect objects from queue
+                        objects_by_position = {"LEFT": [], "FORWARD": [], "RIGHT": []}
+                        seen_objects = set()
+                        
+                        while not self.audio_queue.empty():
+                            try:
+                                label, distance, position = self.audio_queue.get_nowait()
+                                obj_key = f"{label}_{position}"
+                                if obj_key not in seen_objects:
+                                    objects_by_position[position].append(label)
+                                    seen_objects.add(obj_key)
+                            except:
+                                break
+                        
+                        # Create announcement
+                        message_parts = []
+                        for position in ["LEFT", "FORWARD", "RIGHT"]:
+                            if objects_by_position[position]:
+                                # Take top 1 object per position
+                                top_objects = objects_by_position[position][:1]
+                                objects_list = ", ".join(top_objects)
+                                message_parts.append(f"{objects_list} on {position}")
+                        
+                        # Speak using PowerShell TTS
+                        if message_parts:
+                            full_message = ". ".join(message_parts)
+                            try:
+                                ps_cmd = f'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("{full_message}")'
+                                subprocess.Popen(['powershell', '-Command', ps_cmd],
+                                               stdout=subprocess.DEVNULL,
+                                               stderr=subprocess.DEVNULL)
+                                print(f"🔊 Audio: {full_message}")
+                            except Exception as e:
+                                print(f"TTS error: {e}")
+                            
+                            last_announcement = time.time()
+                        
+                        self.audio_is_speaking = False
+                    else:
+                        time.sleep(0.05)
+            except Exception as e:
+                print(f"Audio worker error: {e}")
+                self.audio_is_speaking = False
+        
+        # Start audio thread
+        audio_thread = threading.Thread(target=audio_worker, daemon=True)
+        audio_thread.start()
     
     def detect_objects(self, frame):
-        """Perform object detection on a frame"""
-        if self.session is None:
+        """Perform object detection using dual models (COCO + Custom)"""
+        if not self.has_models:
             # Simulation mode - return fake detections
             height, width = frame.shape[:2]
             fake_detections = [
@@ -203,54 +428,101 @@ class WeSeeWebApp:
                     'bbox': [width//4, height//4, width//4, height//4],
                     'confidence': 0.85,
                     'class': 'person',
-                    'class_id': 0
+                    'class_id': 0,
+                    'model': 'simulation'
                 }
             ]
             return fake_detections
+        
+        all_detections = []
         
         try:
             # Preprocess image
             input_tensor, scale, pad_x, pad_y, orig_width, orig_height = self.preprocess_image(frame)
             
-            # Run inference
-            input_name = self.session.get_inputs()[0].name
-            outputs = self.session.run(None, {input_name: input_tensor})
+            # Run COCO model (every 3 frames for web performance)
+            if self.session_coco is not None and self.frame_count % 3 == 0:
+                try:
+                    input_name = self.session_coco.get_inputs()[0].name
+                    outputs = self.session_coco.run(None, {input_name: input_tensor})
+                    coco_detections = self.postprocess_detections(
+                        outputs, scale, pad_x, pad_y, orig_width, orig_height,
+                        self.class_names_coco, conf_threshold=0.35
+                    )
+                    for det in coco_detections:
+                        det['model'] = 'coco'
+                    all_detections.extend(coco_detections)
+                except Exception as e:
+                    print(f"COCO model error: {e}")
             
-            # Postprocess detections
-            detections = self.postprocess_detections(outputs, scale, pad_x, pad_y, orig_width, orig_height)
+            # Run Custom model (every 4 frames to save performance)
+            if self.session_custom is not None and self.frame_count % 4 == 0:
+                try:
+                    input_name = self.session_custom.get_inputs()[0].name
+                    outputs = self.session_custom.run(None, {input_name: input_tensor})
+                    custom_detections = self.postprocess_detections(
+                        outputs, scale, pad_x, pad_y, orig_width, orig_height,
+                        self.class_names_custom, conf_threshold=0.35
+                    )
+                    for det in custom_detections:
+                        det['model'] = 'custom'
+                    all_detections.extend(custom_detections)
+                except Exception as e:
+                    print(f"Custom model error: {e}")
             
-            return detections
+            return all_detections
             
         except Exception as e:
             print(f"Error in detection: {e}")
             return []
     
     def draw_detections(self, frame, detections):
-        """Draw bounding boxes and labels on frame"""
+        """Draw bounding boxes and labels with distance, position, and audio warnings"""
+        danger_objects = []
+        orig_h, orig_w = frame.shape[:2]
+        
+        # Count persons for performance optimization
+        person_count = sum(1 for d in detections if d.get('class') == 'person')
+        apply_face_blur = person_count <= 3  # Only blur if 3 or fewer people
+        
         for detection in detections:
             bbox = detection['bbox']
             confidence = detection['confidence']
             class_name = detection['class']
             
             x, y, w, h = bbox
+            cx = x + w // 2
             
-            # Estimate distance
-            distance_cm = self.estimate_distance(bbox, frame.shape[0])
+            # Validate trash_can detections
+            if class_name == 'trash_can':
+                if not self.validate_trash_can(x, y, x + w, y + h, orig_h, orig_w):
+                    continue
+                if confidence < 0.4:  # Higher threshold for trash_can
+                    continue
             
-            # Check if warning is needed
-            if class_name == 'person' and distance_cm < self.warning_distance_cm:
-                color = (0, 0, 255)  # Red for warning
-                self.play_audio_warning_macos(f"Warning: Person detected at {distance_cm:.0f} centimeters")
+            # Calculate distance and position
+            distance = self.calculate_distance(w, orig_w, class_name)
+            position = self.get_position(orig_w, cx)
+            
+            # Track dangerous objects (< 2m)
+            if distance < 2.0:
+                danger_objects.append((class_name, distance, position))
+            
+            # Apply face blur for persons (skip if too many for performance)
+            if class_name == 'person' and apply_face_blur:
+                frame = self.blur_person_face(frame, x, y, x + w, y + h)
+            
+            # Color based on distance
+            if distance < 2.0:
+                color = (0, 0, 255)  # Red for danger
             else:
-                color = (0, 255, 0)  # Green for normal detection
+                color = (0, 255, 0)  # Green for safe
             
             # Draw bounding box
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             
             # Prepare label text
-            label = f"{class_name}: {confidence:.2f}"
-            if distance_cm < 500:
-                label += f" ({distance_cm:.0f}cm)"
+            label = f"{class_name} {confidence:.2f} {distance:.1f}m {position}"
             
             # Calculate label size and position
             (label_width, label_height), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
@@ -264,6 +536,12 @@ class WeSeeWebApp:
             cv2.putText(frame, label, (x, label_y - 5), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
+        # Send dangerous objects to audio queue (top 5 closest)
+        if danger_objects:
+            sorted_objects = sorted(danger_objects, key=lambda x: x[1])[:5]
+            for label, dist, pos in sorted_objects:
+                self.audio_queue.put((label, dist, pos))
+        
         return frame
 
     def generate_frames(self):
@@ -276,27 +554,44 @@ class WeSeeWebApp:
                 
                 self.frame_count += 1
                 
-                # Perform object detection
-                detections = self.detect_objects(frame)
+                # Perform object detection (with caching for performance)
+                # Run detection every 3 frames, use cached results otherwise
+                if self.frame_count % 3 == 0:
+                    detections = self.detect_objects(frame)
+                    self.last_detections = detections
+                    self.detection_cache_count = 0
+                else:
+                    detections = self.last_detections
+                    self.detection_cache_count += 1
                 
                 # Draw detections on frame
                 frame = self.draw_detections(frame, detections)
                 
                 # Add mode info overlay
-                mode_text = "AI DETECTION" if self.has_models else "SIMULATION MODE"
-                cv2.putText(frame, f"{mode_text} - {self.current_mode}", (20, 30),
+                mode_text = "DUAL MODEL: COCO + CUSTOM" if self.has_models else "SIMULATION MODE"
+                cv2.putText(frame, f"{mode_text}", (20, 30),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-                cv2.putText(frame, f"Frame: {self.frame_count} | Detections: {len(detections)}", (20, 60),
+                
+                # Show detection stats with cache indicator
+                danger_count = sum(1 for d in detections if 'bbox' in d and self.calculate_distance(d['bbox'][2], frame.shape[1], d['class']) < 2.0)
+                cache_indicator = "[CACHED]" if self.detection_cache_count > 0 else "[LIVE]"
+                stats_text = f"Frame: {self.frame_count} | Objects: {len(detections)} | Danger: {danger_count} {cache_indicator}"
+                cv2.putText(frame, stats_text, (20, 60),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 
-                # Encode frame to JPEG
-                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                # Show audio status
+                audio_status = "SPEAKING" if self.audio_is_speaking else "READY"
+                cv2.putText(frame, f"Audio: {audio_status}", (20, 90),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                
+                # Encode frame to JPEG with lower quality for better performance
+                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 65])
                 if ret:
                     frame_bytes = buffer.tobytes()
                     yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
                 
-                time.sleep(0.033)  # ~30 FPS
+                # No sleep - let it run at natural speed
             except Exception as e:
                 print(f"Frame generation error: {e}")
                 break
@@ -473,11 +768,11 @@ def upload_video():
 
 if __name__ == '__main__':
     print("🚀 Starting WeSee Web Application...")
-    print("📱 Access at: http://127.0.0.1:5000")
+    print("📱 Access at: http://127.0.0.1:5001")
     print("📹 Real-time Detection: Camera/DroidCam support")
     print("🎬 Video Detection: Upload and process video files")
     print("⚙️ Settings: Configure DroidCam IP address")
     print("⏹️  Press Ctrl+C to stop")
     print("-" * 50)
     
-    app.run(debug=False, host='127.0.0.1', port=5000, threaded=True)
+    app.run(debug=False, host='127.0.0.1', port=5001, threaded=True)
