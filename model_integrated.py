@@ -1,4 +1,3 @@
-import warnings
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -13,7 +12,7 @@ from queue import Queue
 USE_CAM = False
 VIDEO_PATH = "D:\\DIPR project\\1000015019.mp4"
 
-cuda_bin = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin"
+cuda_bin = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin"
 cudnn_bin = r"C:\Program Files\NVIDIA\CUDNN\v9.17\bin"
 if os.path.exists(cuda_bin): os.add_dll_directory(cuda_bin)
 if os.path.exists(cudnn_bin): os.add_dll_directory(cudnn_bin)

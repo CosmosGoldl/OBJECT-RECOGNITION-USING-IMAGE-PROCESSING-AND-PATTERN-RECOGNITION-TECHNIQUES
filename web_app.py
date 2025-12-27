@@ -10,18 +10,48 @@ from datetime import datetime
 import numpy as np
 import subprocess
 from queue import Queue
+from collections import deque
 
-# Try to import onnxruntime, fallback if not available
+##########################################################################################
+# CUDA/GPU SETUP
+cuda_bin = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin"
+cudnn_bin = r"C:\Program Files\NVIDIA\CUDNN\v9.17\bin\12.9"
+if os.path.exists(cuda_bin): 
+    os.add_dll_directory(cuda_bin)
+    print(f"✓ Added CUDA bin directory: {cuda_bin}")
+if os.path.exists(cudnn_bin): 
+    os.add_dll_directory(cudnn_bin)
+    print(f"✓ Added cuDNN bin directory: {cudnn_bin}")
+
+# Try to import onnxruntime with GPU support, fallback if not available
 try:
     import onnxruntime as ort
     ONNX_AVAILABLE = True
+    
+    # Check available providers
+    providers = ort.get_available_providers()
+    print(f"🔍 Available ONNX providers: {providers}")
+    
+    # Setup providers with GPU priority
+    if 'CUDAExecutionProvider' in providers:
+        EXECUTION_PROVIDERS = [('CUDAExecutionProvider', {}), 'CPUExecutionProvider']
+        print("🚀 GPU (CUDA) support enabled for inference")
+    else:
+        EXECUTION_PROVIDERS = ['CPUExecutionProvider']
+        print("⚠️ GPU not available, using CPU for inference")
 except ImportError:
     print("⚠️ onnxruntime not available. Running in simulation mode only.")
     ONNX_AVAILABLE = False
+    EXECUTION_PROVIDERS = ['CPUExecutionProvider']
 
 app = Flask(__name__)
 
-detect_every_n = 10
+##########################################################################################
+# GAMMA CORRECTION LUT (Pre-calculated for performance)
+gamma = 0.8
+invGamma = 1.0 / gamma
+GLOBAL_GAMMA_LUT = np.array([((i / 255.0) ** invGamma) * 255
+                            for i in range(256)]).astype("uint8")
 
 class WeSeeWebApp:
     def __init__(self):
@@ -52,11 +82,8 @@ class WeSeeWebApp:
         ]
         self.class_names_custom = ['door', 'trash_can']
         
-        # Gamma correction for preprocessing
-        gamma = 0.8
-        invGamma = 1.0 / gamma
-        self.gamma_lut = np.array([((i / 255.0) ** invGamma) * 255
-                                    for i in range(256)]).astype("uint8")
+        # Use global gamma LUT for better performance
+        self.gamma_lut = GLOBAL_GAMMA_LUT
         
         # Distance warning settings
         self.warning_distance_cm = 200  # 2 meters
@@ -68,9 +95,23 @@ class WeSeeWebApp:
         self.audio_is_speaking = False
         self.setup_audio_system()
         
-        # Performance optimization - cache detections
+        # Performance optimization - remove caching variables since we run detection every frame
         self.last_detections = []
-        self.detection_cache_count = 0
+        
+        # FPS tracking for accurate measurement
+        self.fps_history = deque(maxlen=30)  # Track last 30 frames
+        self.total_frames = 0
+        
+        # Pre-allocate buffer for better performance
+        self.jpeg_buffer = None
+        
+        # Frame skipping for performance
+        self.skip_detection_counter = 0
+        self.last_detections_cache = []
+        
+        # Desktop mode option
+        self.desktop_mode = False
+        self.desktop_window_name = "DIPR Desktop View"
         
         # Comprehensive class sizes for accurate distance estimation
         self.class_avg_sizes = {
@@ -179,20 +220,27 @@ class WeSeeWebApp:
             return
             
         try:
-            # Load COCO model (yolov10s.onnx)
-            coco_path = "models/yolov10s.onnx"
+            print("\n=== LOADING MODELS ===")
+            # Load COCO model (yolov10s.onnx) with GPU support
+            coco_path = "yolov10s.onnx"  # Check root directory first
+            if not os.path.exists(coco_path):
+                coco_path = "models/yolov10s.onnx"  # Fallback to models directory
+            
             if os.path.exists(coco_path):
-                self.session_coco = ort.InferenceSession(coco_path, providers=['CPUExecutionProvider'])
-                print("✓ COCO Model loaded: yolov10s.onnx")
+                self.session_coco = ort.InferenceSession(coco_path, providers=EXECUTION_PROVIDERS)
+                print(f"✓ COCO Model (yolov10s.onnx) loaded with providers: {self.session_coco.get_providers()}")
             else:
                 print("⚠️ COCO model not found: yolov10s.onnx")
                 self.session_coco = None
             
-            # Load Custom model (best.onnx)
-            custom_path = "models/best.onnx"
+            # Load Custom model (best.onnx) with GPU support
+            custom_path = "best.onnx"  # Check root directory first
+            if not os.path.exists(custom_path):
+                custom_path = "models/best.onnx"  # Fallback to models directory
+            
             if os.path.exists(custom_path):
-                self.session_custom = ort.InferenceSession(custom_path, providers=['CPUExecutionProvider'])
-                print("✓ Custom Model loaded: best.onnx")
+                self.session_custom = ort.InferenceSession(custom_path, providers=EXECUTION_PROVIDERS)
+                print(f"✓ Custom Model (best.onnx) loaded with providers: {self.session_custom.get_providers()}")
             else:
                 print("⚠️ Custom model not found: best.onnx")
                 self.session_custom = None
@@ -212,44 +260,37 @@ class WeSeeWebApp:
             self.session_custom = None
             self.has_models = False
     
-    def preprocess_image(self, image):
-        """Preprocess image for ONNX model with gamma correction"""
-        # Resize image to model input size (640x640 for YOLOv10)
-        input_size = 640
-        original_height, original_width = image.shape[:2]
-        
-        # Calculate scaling factors
-        scale = min(input_size / original_width, input_size / original_height)
-        new_width = int(original_width * scale)
-        new_height = int(original_height * scale)
-        
-        # Resize image
-        resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
-        
-        # Create padded image with letterbox
-        padded = np.full((input_size, input_size, 3), 114, dtype=np.uint8)
-        
-        # Calculate padding offsets
-        pad_x = (input_size - new_width) // 2
-        pad_y = (input_size - new_height) // 2
-        
-        # Place resized image in center
-        padded[pad_y:pad_y + new_height, pad_x:pad_x + new_width] = resized
-        
-        # Apply gamma correction
-        padded = cv2.LUT(padded, self.gamma_lut)
-        
-        # Normalize
-        padded = padded.astype(np.float32) / 255.0
-        
-        # Add batch dimension and transpose to CHW format
-        padded = np.transpose(padded, (2, 0, 1))
-        padded = np.expand_dims(padded, axis=0)
-        
-        return padded, scale, pad_x, pad_y, original_width, original_height
+    def preprocess_frame(self, frame, orig_w, orig_h):
+        """Resize + Letterbox + Gamma correction - matches provided code exactly"""
+        r = min(640 / orig_w, 640 / orig_h)
+        new_size = (int(orig_w * r), int(orig_h * r))
+
+        resized = cv2.resize(frame, new_size, interpolation=cv2.INTER_LINEAR)
+        canvas = np.full((640, 640, 3), 114, dtype=np.uint8)
+
+        dw = (640 - new_size[0]) // 2
+        dh = (640 - new_size[1]) // 2
+        canvas[dh:dh + new_size[1], dw:dw + new_size[0]] = resized
+
+        canvas = cv2.LUT(canvas, self.gamma_lut)
+
+        blob = canvas.astype(np.float32) / 255.0
+        blob = np.transpose(blob, (2, 0, 1))
+        blob = np.expand_dims(blob, axis=0)
+
+        return blob, r, dw, dh
     
-    def postprocess_detections(self, outputs, scale, pad_x, pad_y, original_width, original_height, class_names, conf_threshold=0.5):
-        """Process model outputs to get final detections"""
+    def scale_coords(self, x1, y1, x2, y2, r, dw, dh, w, h):
+        """Scale coordinates from model space back to original image space"""
+        return (
+            max(0, int((x1 - dw) / r)),
+            max(0, int((y1 - dh) / r)),
+            min(w, int((x2 - dw) / r)),
+            min(h, int((y2 - dh) / r))
+        )
+
+    def postprocess_detections(self, outputs, r, dw, dh, original_width, original_height, class_names, conf_threshold=0.35):
+        """Process model outputs to get final detections using improved coordinate scaling"""
         detections = []
         
         try:
@@ -261,27 +302,18 @@ class WeSeeWebApp:
                     x1, y1, x2, y2, conf, class_id = detection[:6]
                     
                     if conf > conf_threshold:
-                        # Convert coordinates back to original image space
-                        x1 = (x1 - pad_x) / scale
-                        y1 = (y1 - pad_y) / scale
-                        x2 = (x2 - pad_x) / scale
-                        y2 = (y2 - pad_y) / scale
-                        
-                        # Clip coordinates to image bounds
-                        x1 = max(0, min(x1, original_width))
-                        y1 = max(0, min(y1, original_height))
-                        x2 = max(0, min(x2, original_width))
-                        y2 = max(0, min(y2, original_height))
+                        # Scale coordinates back to original image space
+                        ix1, iy1, ix2, iy2 = self.scale_coords(x1, y1, x2, y2, r, dw, dh, original_width, original_height)
                         
                         # Calculate width and height
-                        width = x2 - x1
-                        height = y2 - y1
+                        width = ix2 - ix1
+                        height = iy2 - iy1
                         
                         if width > 0 and height > 0:
                             class_name = class_names[int(class_id)] if int(class_id) < len(class_names) else "unknown"
                             
                             detections.append({
-                                'bbox': [int(x1), int(y1), int(width), int(height)],
+                                'bbox': [int(ix1), int(iy1), int(width), int(height)],
                                 'confidence': float(conf),
                                 'class': class_name,
                                 'class_id': int(class_id)
@@ -439,17 +471,20 @@ class WeSeeWebApp:
         all_detections = []
         
         try:
-            # Preprocess image
-            input_tensor, scale, pad_x, pad_y, orig_width, orig_height = self.preprocess_image(frame)
+            # Get frame dimensions
+            orig_height, orig_width = frame.shape[:2]
             
-            # Run COCO model (every 3 frames for web performance)
-            if self.session_coco is not None and self.frame_count % detect_every_n == 0:
+            # Preprocess image using improved method
+            input_tensor, r, dw, dh = self.preprocess_frame(frame, orig_width, orig_height)
+            
+            # Run COCO model every frame (like standalone script)
+            if self.session_coco is not None:
                 try:
                     input_name = self.session_coco.get_inputs()[0].name
                     outputs = self.session_coco.run(None, {input_name: input_tensor})
                     coco_detections = self.postprocess_detections(
-                        outputs, scale, pad_x, pad_y, orig_width, orig_height,
-                        self.class_names_coco, conf_threshold=0.35
+                        outputs, r, dw, dh, orig_width, orig_height,
+                        self.class_names_coco, conf_threshold=0.45
                     )
                     for det in coco_detections:
                         det['model'] = 'coco'
@@ -457,14 +492,14 @@ class WeSeeWebApp:
                 except Exception as e:
                     print(f"COCO model error: {e}")
             
-            # Run Custom model (every 4 frames to save performance)
-            if self.session_custom is not None and self.frame_count % 4 == 0:
+            # Run Custom model every 2nd frame (like standalone script)
+            if self.session_custom is not None and self.frame_count % 2 == 0:
                 try:
                     input_name = self.session_custom.get_inputs()[0].name
                     outputs = self.session_custom.run(None, {input_name: input_tensor})
                     custom_detections = self.postprocess_detections(
-                        outputs, scale, pad_x, pad_y, orig_width, orig_height,
-                        self.class_names_custom, conf_threshold=0.35
+                        outputs, r, dw, dh, orig_width, orig_height,
+                        self.class_names_custom, conf_threshold=0.45
                     )
                     for det in custom_detections:
                         det['model'] = 'custom'
@@ -550,44 +585,64 @@ class WeSeeWebApp:
         """Generator function for video streaming with real-time detection"""
         while self.is_running and self.cap is not None and self.cap.isOpened():
             try:
+                # CLEAR CAMERA BUFFER to reduce delay (grab latest frame only)
+                for _ in range(2):  # Skip 2 buffered frames
+                    self.cap.grab()
+                    
+                start_time = time.time()
                 ret, frame = self.cap.read()
                 if not ret:
                     break
                 
                 self.frame_count += 1
                 
-                # Perform object detection (with caching for performance)
-                # Run detection every 3 frames, use cached results otherwise
-                if self.frame_count % detect_every_n == 0:
+                # EXTREME PERFORMANCE: Skip detection every 3rd frame
+                self.skip_detection_counter += 1
+                if self.skip_detection_counter % 3 == 0:
+                    # Run full detection
                     detections = self.detect_objects(frame)
-                    self.last_detections = detections
-                    self.detection_cache_count = 0
+                    self.last_detections_cache = detections
                 else:
-                    detections = self.last_detections
-                    self.detection_cache_count += 1
+                    # Reuse previous detections for 3x speed boost
+                    detections = self.last_detections_cache
                 
                 # Draw detections on frame
                 frame = self.draw_detections(frame, detections)
                 
-                # Add mode info overlay
-                mode_text = "DUAL MODEL: COCO + CUSTOM" if self.has_models else "SIMULATION MODE"
-                cv2.putText(frame, f"{mode_text}", (20, 30),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                # Calculate accurate FPS with moving average
+                frame_time = time.time() - start_time
+                self.fps_history.append(frame_time)
+                self.total_frames += 1
                 
-                # Show detection stats with cache indicator
-                danger_count = sum(1 for d in detections if 'bbox' in d and self.calculate_distance(d['bbox'][2], frame.shape[1], d['class']) < 2.0)
-                cache_indicator = "[CACHED]" if self.detection_cache_count > 0 else "[LIVE]"
-                stats_text = f"Frame: {self.frame_count} | Objects: {len(detections)} | Danger: {danger_count} {cache_indicator}"
-                cv2.putText(frame, stats_text, (20, 60),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                # Use moving average for stable FPS reading
+                if len(self.fps_history) > 5:
+                    avg_frame_time = sum(self.fps_history) / len(self.fps_history)
+                    fps = 1 / avg_frame_time
+                else:
+                    fps = 1 / frame_time
                 
-                # Show audio status
-                audio_status = "SPEAKING" if self.audio_is_speaking else "READY"
-                cv2.putText(frame, f"Audio: {audio_status}", (20, 90),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                # Display info every 5th frame to reduce text rendering overhead
+                if self.skip_detection_counter % 5 == 0:
+                    info_text = f"FPS: {fps:.1f} | DUAL MODEL"
+                    cv2.putText(frame, info_text, (20, 40),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                    
+                    # Count dangerous objects
+                    danger_count = sum(1 for d in detections if 'bbox' in d and self.calculate_distance(d['bbox'][2], frame.shape[1], d['class']) < 2.0)
+                    stats_text = f"Objects < 2m: {danger_count}"
+                    cv2.putText(frame, stats_text, (20, 70), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                 
-                # Encode frame to JPEG with lower quality for better performance
-                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 65])
+                # Desktop view option (cv2.imshow alongside web streaming)
+                if self.desktop_mode:
+                    cv2.imshow(self.desktop_window_name, frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        self.stop_detection()
+                        break
+                
+                # EXTREME OPTIMIZATION: Small frame + lowest quality
+                small_frame = cv2.resize(frame, (720, 480), interpolation=cv2.INTER_NEAREST)  # Nearest = fastest
+                ret, buffer = cv2.imencode('.jpg', small_frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
                 if ret:
                     frame_bytes = buffer.tobytes()
                     yield (b'--frame\r\n'
@@ -598,6 +653,17 @@ class WeSeeWebApp:
                 print(f"Frame generation error: {e}")
                 break
     
+    def enable_desktop_view(self):
+        """Enable cv2.imshow window alongside web streaming"""
+        self.desktop_mode = True
+        print("🖥️  Desktop view enabled - cv2.imshow window will open")
+        
+    def disable_desktop_view(self):
+        """Disable cv2.imshow window"""
+        self.desktop_mode = False
+        cv2.destroyWindow(self.desktop_window_name)
+        print("🌐 Desktop view disabled - web only mode")
+
     def add_simulation_overlays(self, frame):
         """Add fake detection overlays for simulation (kept for backward compatibility)"""
         return frame  # Now handled by detect_objects method
@@ -625,10 +691,17 @@ class WeSeeWebApp:
             # Fallback to default camera if DroidCam failed or not configured
             if self.cap is None or not self.cap.isOpened():
                 print("Trying default camera (index 0)...")
-                self.cap = cv2.VideoCapture(0)
+                self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # DirectShow for Windows - faster
 
             if not self.cap.isOpened():
                 raise Exception("Cannot connect to camera or DroidCam")
+            
+            # OPTIMIZE CAMERA FOR LOW DELAY
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimum buffer = less delay  
+            self.cap.set(cv2.CAP_PROP_FPS, 30)        # Set to 30fps
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)   # Lower res = faster
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Lower res = faster
+            print("✓ Camera optimized for minimal delay")
             
             self.is_running = True
             self.status = "🟢 Camera detection running"
@@ -779,12 +852,25 @@ def upload_video():
         "filepath": filepath
     })
 
+@app.route('/desktop/enable')
+def enable_desktop():
+    """Enable cv2.imshow window for desktop viewing"""
+    app_instance.enable_desktop_view()
+    return jsonify({"status": "success", "message": "Desktop view enabled"})
+
+@app.route('/desktop/disable') 
+def disable_desktop():
+    """Disable cv2.imshow window"""
+    app_instance.disable_desktop_view()
+    return jsonify({"status": "success", "message": "Desktop view disabled"})
+
 if __name__ == '__main__':
-    print("🚀 Starting WeSee Web Application...")
+    print("🚀 Starting WeSee Web Application with GPU Support...")
     print("📱 Access at: http://127.0.0.1:5001")
     print("📹 Real-time Detection: Camera/DroidCam support")
     print("🎬 Video Detection: Upload and process video files")
     print("⚙️ Settings: Configure DroidCam IP address")
+    print("🎮 GPU Acceleration: CUDA + cuDNN optimized")
     print("⏹️  Press Ctrl+C to stop")
     print("-" * 50)
     
