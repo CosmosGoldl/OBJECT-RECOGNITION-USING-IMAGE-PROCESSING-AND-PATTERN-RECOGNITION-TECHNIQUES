@@ -21,12 +21,14 @@ except ImportError:
 
 app = Flask(__name__)
 
+detect_every_n = 10
+
 class WeSeeWebApp:
     def __init__(self):
         self.cap = None
         self.is_running = False
         self.detection_thread = None
-        self.droidcam_ip = "169.254.96.95"
+        self.droidcam_ip = ""
         self.current_mode = None
         self.video_path = None
         self.status = "🔴 Ready"
@@ -441,7 +443,7 @@ class WeSeeWebApp:
             input_tensor, scale, pad_x, pad_y, orig_width, orig_height = self.preprocess_image(frame)
             
             # Run COCO model (every 3 frames for web performance)
-            if self.session_coco is not None and self.frame_count % 3 == 0:
+            if self.session_coco is not None and self.frame_count % detect_every_n == 0:
                 try:
                     input_name = self.session_coco.get_inputs()[0].name
                     outputs = self.session_coco.run(None, {input_name: input_tensor})
@@ -556,7 +558,7 @@ class WeSeeWebApp:
                 
                 # Perform object detection (with caching for performance)
                 # Run detection every 3 frames, use cached results otherwise
-                if self.frame_count % 3 == 0:
+                if self.frame_count % detect_every_n == 0:
                     detections = self.detect_objects(frame)
                     self.last_detections = detections
                     self.detection_cache_count = 0
@@ -606,14 +608,25 @@ class WeSeeWebApp:
             self.current_mode = "Camera"
             self.status = "🟡 Initializing camera..."
             
-            # Try default camera first
-            self.cap = cv2.VideoCapture(0)
-            if not self.cap.isOpened():
-                # Try DroidCam
-                droidcam_url = f"http://{self.droidcam_ip}:4747/video"
+            self.cap = None
+            
+            # Try DroidCam first if IP is configured
+            if self.droidcam_ip and self.droidcam_ip.strip():
+                droidcam_url = f"http://{self.droidcam_ip.strip()}:4747/video"
                 print(f"Trying DroidCam URL: {droidcam_url}")
                 self.cap = cv2.VideoCapture(droidcam_url)
-            
+                if self.cap.isOpened():
+                    print("✓ Connected to DroidCam successfully")
+                else:
+                    print("⚠️ DroidCam connection failed, trying default camera...")
+                    self.cap.release()
+                    self.cap = None
+
+            # Fallback to default camera if DroidCam failed or not configured
+            if self.cap is None or not self.cap.isOpened():
+                print("Trying default camera (index 0)...")
+                self.cap = cv2.VideoCapture(0)
+
             if not self.cap.isOpened():
                 raise Exception("Cannot connect to camera or DroidCam")
             
